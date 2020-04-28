@@ -38,13 +38,13 @@ class ShardedDB {
             this.storages = res;
             let queries = new Array();
             for (let key in this.tempstorage) {
-                queries.push(this.putAsync(key, this.tempstorage[key], {}));
+                queries.push(this.storages[0].level.put(key, this.tempstorage[key], {}));
             }
             return Promise.all(queries);
         })
         .then((res) => {
-            this.tempstorage = null;
             this.isOpened = true;
+            this.tempstorage = null;
         })
         .catch((err) => {
             throw err;
@@ -215,7 +215,7 @@ class ShardedDB {
         } catch (e) {
             return Promise.reject(e);
         }
-        if(result && result.toString().includes('JSON:')) {
+        if(result !== null && result !== undefined && result.toString().includes('JSON:')) {
             result = JSON.parse(result.toString().replace('JSON:', ''));
         }
 
@@ -231,7 +231,11 @@ class ShardedDB {
     put(key, value, options, callback) {
         if (this.isOpened) {
             this.putAsync(key, value, options)
-            .then(() => callback())
+            .then(() => {
+                if (typeof(callback) === 'function') {
+                  callback();
+            }
+            })
             .catch((err) => {
                 if (typeof(callback) === 'function') {
                     callback(err);
@@ -263,12 +267,12 @@ class ShardedDB {
             // try to find that key in the storages. To overwrite this key
             // we need to delete old value to guarant uniqueness of that key
             // if key not found, just put a new one
-            isKeyExists = await this.get(key);
+            isKeyExists = await this.getAsync(key);
         } catch (e) {
             isKeyExists = null;
         }
 
-        if (isKeyExists) {
+        if (isKeyExists !== null && isKeyExists !== undefined) {
             await this.delAsync(key);
         }
 
